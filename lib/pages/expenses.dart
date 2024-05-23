@@ -1,9 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:expense_tracker/models/expense.dart';
 import 'package:expense_tracker/pages/new_expense.dart';
 import 'package:expense_tracker/utils/expenses_list.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'settings_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Expenses extends StatefulWidget {
   const Expenses({Key? key, required this.changeTheme}) : super(key: key);
@@ -14,7 +18,7 @@ class Expenses extends StatefulWidget {
 }
 
 class _ExpensesState extends State<Expenses> {
-  final List<Expense> registeredList = [
+  List<Expense> registeredList = [
     Expense(
       name: "flutter course",
       amount: 499,
@@ -29,17 +33,43 @@ class _ExpensesState extends State<Expenses> {
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchExpenses();
+  }
+
+  Future<void> _fetchExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? savedExpenses = prefs.getStringList('expenses');
+    if (savedExpenses != null) {
+      setState(() {
+        registeredList = savedExpenses
+            .map((json) => Expense.fromJson(jsonDecode(json)))
+            .toList();
+      });
+    }
+  }
+
+  Future<void> _saveExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> jsonList =
+        registeredList.map((expense) => jsonEncode(expense.toJson())).toList();
+    await prefs.setStringList('expenses', jsonList);
+  }
+
   void addToList(Expense expense) {
     setState(() {
       registeredList.add(expense);
     });
+    _saveExpenses();
   }
 
   void deleteExpense(Expense expense) {
-    final index = registeredList.indexOf(expense);
     setState(() {
       registeredList.remove(expense);
     });
+    _saveExpenses();
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -50,9 +80,10 @@ class _ExpensesState extends State<Expenses> {
           onPressed: () {
             setState(
               () {
-                registeredList.insert(index, expense);
+                registeredList.add(expense);
               },
             );
+            _saveExpenses();
           },
         ),
       ),
@@ -120,11 +151,23 @@ class _ExpensesState extends State<Expenses> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => SettingsPage(
-                        onThemeChanged: widget.changeTheme,
-                      ),
-                    ),
+                        builder: (context) => SettingsPage(
+                              onThemeChanged: widget.changeTheme,
+                              deleteAllExpenses: () {
+                                setState(() {
+                                  registeredList.clear();
+                                });
+                                _saveExpenses();
+                              },
+                            )),
                   );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.exit_to_app),
+                title: const Text('Exit'),
+                onTap: () {
+                  exit(0);
                 },
               ),
             ],

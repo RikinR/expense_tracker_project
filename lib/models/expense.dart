@@ -28,6 +28,24 @@ class Expense {
   String getFormattedDate(itemDate) {
     return DateFormat.yMd().format(itemDate);
   }
+
+  factory Expense.fromJson(Map<String, dynamic> json) {
+    return Expense(
+      name: json['name'],
+      amount: json['amount'],
+      date: DateTime.parse(json['date']),
+      itemCategory: Categories.values[json['itemCategory']],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'itemCategory': itemCategory.index,
+    };
+  }
 }
 
 class ExpenseBucket {
